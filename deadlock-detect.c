@@ -19,6 +19,7 @@ int main(int argc, char* argv[])
   int numberOfArgs = argc;
   char* filename;
   int processNumber;
+  char* processName = argv[0];//Initialize
 
   if(numberOfArgs < 3)
     {
@@ -28,7 +29,8 @@ int main(int argc, char* argv[])
     {
       filename = argv[1];
       processNumber = atoi(argv[2]);
-      if(debug){printf("Filename: %s\nProcessNumber: %d\n", filename, processNumber);}
+      sprintf(processName, "P%d", processNumber);
+      if(debug){printf("Filename: %s\nProcessNumber: %d\nProcessName: %s\n", filename, processNumber, processName);}
     }
 
   return 0;
