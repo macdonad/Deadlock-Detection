@@ -1,0 +1,7 @@
+P1 owns r2
+P1 requests r1
+P2 owns r1
+P2 owns r3
+P2 requests r4
+P3 owns r4
+P3 requests r2
