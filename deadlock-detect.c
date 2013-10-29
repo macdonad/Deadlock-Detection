@@ -15,14 +15,11 @@
 #include <string.h>
 #include <signal.h>
 
-//Debug value
-#define debug 1
-
-
 //Prototypes
 void read_file(char*);
 void handle_line(char*);
 void handle_signal(int);
+void debug_set();
 
 //Globals
 int blocked = 0;
@@ -30,10 +27,19 @@ char* blockingProcess;
 int processNumber;
 char* processName;
 
+int debug = 0;
+
+char* own[3];
+int owncount = 0;
+char* request[3];
+int requestcount = 0;
+
 //Main
 int main(int argc, char* argv[])
 {
   signal(SIGINT, handle_signal);
+
+  debug_set();
 
   int numberOfArgs = argc;
   char* filename;
@@ -53,6 +59,17 @@ int main(int argc, char* argv[])
 
   //read in file
   read_file(filename);
+
+  while(owncount >= 0)
+    {
+      printf("Own: %s\n", own[owncount]);
+      owncount--;
+    }
+  while(requestcount >= 0)
+    {
+      printf("Request: %s\n", request[requestcount]);
+      requestcount--;
+    }
 
 
   return 0;
@@ -96,36 +113,33 @@ void handle_line(char* line)
   const char* s = " ";
   char* piece;
   int me = 0;
-  char* own[3];
-  int owncount = 0;
-  char* request[3];
-  int requestcount = 0;
+
+  //owns = 0, request = 1
+  int owns_request = 0;
 
   //Process
   piece = strtok(line, s);
-  printf("%s\n", piece);
+  if(debug){printf("%s\n", piece);}
   if(!strcmp(piece, processName))
     {
       me = 1;
-      printf("ME!\n");
+      if(debug){printf("ME!\n");}
     }
 
   //Owns / Requests
   piece = strtok(NULL, s);
-  printf("%s\n", piece);
+  if(debug){printf("%s\n", piece);}
   if(me)
     {
       if(!strcmp(piece, "owns"))
 	{
-	  own[owncount] = piece;
-	  owncount++;
-	  printf("I own something!\n");
+	  if(debug){printf("I own something!\n");}
+	  owns_request = 0;
 	}
       else
 	{
-	  printf("gimme!\n");
-	  request[requestcount] = piece;
-	  requestcount++;
+	  if(debug){printf("gimme!\n");}
+	  owns_request = 1;
 	  //Need to check if this is owned by someone
 	  //Then send my messages to that process
 	}
@@ -133,15 +147,40 @@ void handle_line(char* line)
 
   //Resource
   piece = strtok(NULL, s);
-  printf("%s\n", piece);
+  if(debug){printf("%s\n", piece);}
   if(me)
     {
-      printf("THIS! %s\n", piece);
-    }
+      if(debug){printf("THIS! %s\n", piece);}
+      if(owns_request)
+	{
+	  request[requestcount] = piece;
+	  requestcount++;
+	}
+      else
+	{
+	  own[owncount] = piece;
+	  owncount++;
+	}
+    }  
 }
 
 void handle_signal(int sigNum)
 {
   printf("\nUggggghhhhhh...... Death.\n");
   exit(0);
+}
+
+void debug_set()
+{
+  char response;
+  printf("Enable Debug?(Y/N)\n");
+  scanf("%c", &response);
+  if(response == 'Y'||response == 'y')
+    {
+      debug = 1;
+    }
+  else
+    {
+      debug = 0;
+    }
 }
