@@ -96,6 +96,10 @@ void handle_line(char* line)
   const char* s = " ";
   char* piece;
   int me = 0;
+  char* own[3];
+  int owncount = 0;
+  char* request[3];
+  int requestcount = 0;
 
   //Process
   piece = strtok(line, s);
@@ -113,11 +117,15 @@ void handle_line(char* line)
     {
       if(!strcmp(piece, "owns"))
 	{
+	  own[owncount] = piece;
+	  owncount++;
 	  printf("I own something!\n");
 	}
       else
 	{
 	  printf("gimme!\n");
+	  request[requestcount] = piece;
+	  requestcount++;
 	  //Need to check if this is owned by someone
 	  //Then send my messages to that process
 	}
