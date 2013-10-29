@@ -29,9 +29,9 @@ char* processName;
 
 int debug = 0;
 
-char* own[3];
+char* own[10];
 int owncount = 0;
-char* request[3];
+char* request[10];
 int requestcount = 0;
 
 //Main
@@ -39,7 +39,11 @@ int main(int argc, char* argv[])
 {
   signal(SIGINT, handle_signal);
 
-  debug_set();
+  //remove if's
+  if(debug)
+    {
+      debug_set();
+    }
 
   int numberOfArgs = argc;
   char* filename;
@@ -153,12 +157,12 @@ void handle_line(char* line)
       if(debug){printf("THIS! %s\n", piece);}
       if(owns_request)
 	{
-	  request[requestcount] = piece;
+	  strcpy(request[requestcount], piece);
 	  requestcount++;
 	}
       else
 	{
-	  own[owncount] = piece;
+	  strcpy(own[owncount], piece);
 	  owncount++;
 	}
     }  
