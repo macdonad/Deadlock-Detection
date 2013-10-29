@@ -29,9 +29,9 @@ char* processName;
 
 int debug = 0;
 
-char* own[10];
+char own[10][2];
 int owncount = 0;
-char* request[10];
+char request[10][2];
 int requestcount = 0;
 
 //Main
@@ -39,20 +39,8 @@ int main(int argc, char* argv[])
 {
   signal(SIGINT, handle_signal);
 
-  int i = 10;
-  while(i > 0)
-    {
-      own[i] = (char*)malloc(2);
-      request[i] = (char*)malloc(2);
-      i--;
-    }
-
-  //remove if's
-  if(debug)
-    {
-      debug_set();
-    }
-
+  debug_set();
+  
   int numberOfArgs = argc;
   char* filename;
   processName = argv[0];//Initialize
@@ -72,24 +60,22 @@ int main(int argc, char* argv[])
   //read in file
   read_file(filename);
 
+  //Print what I own
+  owncount--;
   while(owncount >= 0)
     {
       printf("Own: %s\n", own[owncount]);
       owncount--;
     }
+
+  //Print What I am Requesting
+  requestcount--;
   while(requestcount >= 0)
     {
       printf("Request: %s\n", request[requestcount]);
       requestcount--;
     }
 
-  i = 10;
-  while(i > 0)
-    {
-      free(own[i]);
-      free(request[i]);
-      i--;
-    }
   return 0;
 }
 
@@ -176,7 +162,8 @@ void handle_line(char* line)
 	}
       else
 	{
-	  strcpy(own[owncount], piece);
+	  printf("Piece: %s\n", piece);
+	  strcpy(own[owncount], piece);	  
 	  owncount++;
 	}
     }  
@@ -193,7 +180,7 @@ void debug_set()
   char response;
   printf("Enable Debug?(Y/N)\n");
   scanf("%c", &response);
-  if(response == 'Y'||response == 'y')
+  if(response == 'Y' || response == 'y')
     {
       debug = 1;
     }
