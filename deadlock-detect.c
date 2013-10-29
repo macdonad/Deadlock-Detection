@@ -12,6 +12,8 @@
 //Include files
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <signal.h>
 
 //Debug value
 #define debug 1
@@ -20,6 +22,7 @@
 //Prototypes
 void read_file(char*);
 void handle_line(char*);
+void handle_signal(int);
 
 //Globals
 int blocked = 0;
@@ -30,6 +33,8 @@ char* processName;
 //Main
 int main(int argc, char* argv[])
 {
+  signal(SIGINT, handle_signal);
+
   int numberOfArgs = argc;
   char* filename;
   processName = argv[0];//Initialize
@@ -88,5 +93,47 @@ void read_file(char* filename)
 //Takes line from text and checks 
 void handle_line(char* line)
 {
-  printf("%s", line);
+  const char* s = " ";
+  char* piece;
+  int me = 0;
+
+  //Process
+  piece = strtok(line, s);
+  printf("%s\n", piece);
+  if(!strcmp(piece, processName))
+    {
+      me = 1;
+      printf("ME!\n");
+    }
+
+  //Owns / Requests
+  piece = strtok(NULL, s);
+  printf("%s\n", piece);
+  if(me)
+    {
+      if(!strcmp(piece, "owns"))
+	{
+	  printf("I own something!\n");
+	}
+      else
+	{
+	  printf("gimme!\n");
+	  //Need to check if this is owned by someone
+	  //Then send my messages to that process
+	}
+    }
+
+  //Resource
+  piece = strtok(NULL, s);
+  printf("%s\n", piece);
+  if(me)
+    {
+      printf("THIS! %s\n", piece);
+    }
+}
+
+void handle_signal(int sigNum)
+{
+  printf("\nUggggghhhhhh...... Death.\n");
+  exit(0);
 }
