@@ -39,6 +39,14 @@ int main(int argc, char* argv[])
 {
   signal(SIGINT, handle_signal);
 
+  int i = 10;
+  while(i > 0)
+    {
+      own[i] = (char*)malloc(2);
+      request[i] = (char*)malloc(2);
+      i--;
+    }
+
   //remove if's
   if(debug)
     {
@@ -75,7 +83,13 @@ int main(int argc, char* argv[])
       requestcount--;
     }
 
-
+  i = 10;
+  while(i > 0)
+    {
+      free(own[i]);
+      free(request[i]);
+      i--;
+    }
   return 0;
 }
 
