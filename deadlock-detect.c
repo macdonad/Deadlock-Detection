@@ -31,9 +31,9 @@ char* processName;
 
 int debug = 0;
 
-char own[10][2];
+char own[10][3];
 int owncount = 0;
-char request[10][2];
+char request[10][3];
 int requestcount = 0;
 
 char* filename;
@@ -160,10 +160,7 @@ void handle_line(char* line)
 	}
       else
 	{
-	  printf("OwnCount: %d\n", owncount);
 	  strcpy(own[owncount], piece);	  
-	  printf("After Copy: %s\n", own[owncount]);
-	  printf("Own[0]: %s\n", own[0]);
 	  owncount++;
 	}
     }  
