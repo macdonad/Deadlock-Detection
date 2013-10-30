@@ -16,10 +16,12 @@
 #include <signal.h>
 
 //Prototypes
-void read_file(char*);
+void read_file();
 void handle_line(char*);
 void handle_signal(int);
 void debug_set();
+void check_requested();
+void owns_my_requested(char*);
 
 //Globals
 int blocked = 0;
@@ -34,6 +36,8 @@ int owncount = 0;
 char request[10][2];
 int requestcount = 0;
 
+char* filename;
+
 //Main
 int main(int argc, char* argv[])
 {
@@ -42,7 +46,6 @@ int main(int argc, char* argv[])
   debug_set();
   
   int numberOfArgs = argc;
-  char* filename;
   processName = argv[0];//Initialize
 
   if(numberOfArgs < 3)
@@ -58,28 +61,30 @@ int main(int argc, char* argv[])
     }
 
   //read in file
-  read_file(filename);
+  read_file();
 
   //Print what I own
-  owncount--;
-  while(owncount >= 0)
+  int i = 0;
+  while(i < owncount)
     {
-      printf("Own: %s\nCount: %d\n", own[owncount], owncount);
-      owncount--;
+      printf("Own: %s\nCount: %d\n", own[i], i);
+      i++;
     }
 
   //Print What I am Requesting
-  requestcount--;
-  while(requestcount >= 0)
+  i = 0;
+  while(i < requestcount)
     {
-      printf("Request: %s\n", request[requestcount]);
-      requestcount--;
+      printf("Request: %s\n", request[i]);
+      i++;
     }
+  
+  check_requested();
 
   return 0;
 }
 
-void read_file(char* filename)
+void read_file()
 {
   int size = 1024, pos;
   int c;
@@ -155,7 +160,10 @@ void handle_line(char* line)
 	}
       else
 	{
+	  printf("OwnCount: %d\n", owncount);
 	  strcpy(own[owncount], piece);	  
+	  printf("After Copy: %s\n", own[owncount]);
+	  printf("Own[0]: %s\n", own[0]);
 	  owncount++;
 	}
     }  
@@ -181,4 +189,45 @@ void debug_set()
     {
       debug = 0;
     }
+}
+
+void check_requested()
+{
+  int size = 1024, pos;
+  int c;
+  char* buffer = (char*)malloc(size);
+
+  FILE *file = fopen(filename, "r");
+  if(file)
+    {
+      do
+	{
+	  pos = 0;
+	  do
+	    {
+	      c = fgetc(file);
+	      if(c != EOF) buffer[pos++] = (char)c;
+	      if(pos >= size - 1)
+		{
+		  size *= 2;
+		  buffer = (char*)realloc(buffer, size);
+		}
+	    }
+	  while(c != EOF && c != '\n');
+	  buffer[pos] = 0;
+	  owns_my_requested(buffer);
+	}
+      while(c != EOF);
+      fclose(file);
+    }
+  free(buffer);
+}
+
+void owns_my_requested(char* line)
+{
+  const char* s = " \n";
+  char* piece;
+  int owningprocess;
+
+  
 }
