@@ -64,7 +64,7 @@ int main(int argc, char* argv[])
   owncount--;
   while(owncount >= 0)
     {
-      printf("Own: %s\n", own[owncount]);
+      printf("Own: %s\nCount: %d\n", own[owncount], owncount);
       owncount--;
     }
 
@@ -114,7 +114,7 @@ void read_file(char* filename)
 //Takes line from text and checks 
 void handle_line(char* line)
 {
-  const char* s = " ";
+  const char* s = " \n";
   char* piece;
   int me = 0;
 
@@ -123,26 +123,21 @@ void handle_line(char* line)
 
   //Process
   piece = strtok(line, s);
-  if(debug){printf("%s\n", piece);}
   if(!strcmp(piece, processName))
     {
       me = 1;
-      if(debug){printf("ME!\n");}
     }
 
   //Owns / Requests
   piece = strtok(NULL, s);
-  if(debug){printf("%s\n", piece);}
   if(me)
     {
       if(!strcmp(piece, "owns"))
 	{
-	  if(debug){printf("I own something!\n");}
 	  owns_request = 0;
 	}
       else
 	{
-	  if(debug){printf("gimme!\n");}
 	  owns_request = 1;
 	  //Need to check if this is owned by someone
 	  //Then send my messages to that process
@@ -151,10 +146,8 @@ void handle_line(char* line)
 
   //Resource
   piece = strtok(NULL, s);
-  if(debug){printf("%s\n", piece);}
   if(me)
     {
-      if(debug){printf("THIS! %s\n", piece);}
       if(owns_request)
 	{
 	  strcpy(request[requestcount], piece);
@@ -162,11 +155,11 @@ void handle_line(char* line)
 	}
       else
 	{
-	  printf("Piece: %s\n", piece);
 	  strcpy(own[owncount], piece);	  
 	  owncount++;
 	}
     }  
+  me = 0;
 }
 
 void handle_signal(int sigNum)
