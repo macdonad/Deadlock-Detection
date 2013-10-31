@@ -373,10 +373,14 @@ void set_up_pipes()
   char* pipename = "PipeProcess1To2";
   char buf[MAX_BUF];
 
-  mkfifo(pipename, 0666);
-
-  fd = open(pipename, S_IWUSR | S_IRUSR);
-  write(fd, "Hi", sizeof("Hi"));
+  if(!mkfifo(pipename, 0666))
+    {
+      perror("Error making fifo\n");
+      exit(0);
+    }
+  printf("Here\n");
+  //fd = open(pipename, S_IWUSR | S_IRUSR);
+  //write(fd, "Hi", sizeof("Hi"));
 
   close(fd);
 
