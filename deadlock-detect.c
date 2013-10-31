@@ -22,6 +22,11 @@ void handle_signal(int);
 void debug_set();
 void check_requested();
 void owns_my_requested(char*);
+void am_i_blocked();
+void respond_to_probe(char*);
+void main_thread();
+void sender_thread();
+void receiver_thread();
 
 //Globals
 int blocked = 0;
@@ -29,12 +34,17 @@ char* blockingProcess;
 int processNumber;
 char* processName;
 
+int deadlocked = 0;
 int debug = 0;
+int sendprobes = 0;
 
 char own[10][3];
 int owncount = 0;
 char request[10][3];
 int requestcount = 0;
+
+char blockedby[10][3];
+int blockedbycount = 0;
 
 char* filename;
 
@@ -64,21 +74,24 @@ int main(int argc, char* argv[])
   read_file();
 
   //Print what I own
-  int i = 0;
-  while(i < owncount)
+  if(debug)
     {
-      printf("Own: %s\nCount: %d\n", own[i], i);
-      i++;
-    }
+      int i = 0;
+      while(i < owncount)
+	{
+	  printf("Own: %s\n", own[i]);
+	  i++;
+	}
+    
 
   //Print What I am Requesting
-  i = 0;
-  while(i < requestcount)
-    {
-      printf("Request: %s\n", request[i]);
-      i++;
+      i = 0;
+      while(i < requestcount)
+	{
+	  printf("Request: %s\n", request[i]);
+	  i++;
+	}
     }
-  
   check_requested();
 
   return 0;
@@ -144,8 +157,6 @@ void handle_line(char* line)
       else
 	{
 	  owns_request = 1;
-	  //Need to check if this is owned by someone
-	  //Then send my messages to that process
 	}
     }
 
@@ -169,7 +180,7 @@ void handle_line(char* line)
 
 void handle_signal(int sigNum)
 {
-  printf("\nUggggghhhhhh...... Death.\n");
+  printf("\nUggggghhhhhh...... Death. Process %s has died.\n", processName);
   exit(0);
 }
 
@@ -218,13 +229,104 @@ void check_requested()
       fclose(file);
     }
   free(buffer);
+
+  if(debug){am_i_blocked();}
 }
 
 void owns_my_requested(char* line)
 {
   const char* s = " \n";
   char* piece;
-  int owningprocess;
+  char* owningprocess;
+  int i = 0;
 
+  owningprocess = strtok(line, s);
+  if(strcmp(owningprocess, processName))
+    {
+      piece = strtok(NULL, s);
+      if(!strcmp(piece, "owns"))
+	{
+	  piece = strtok(NULL, s);
+	    {
+	      while(i < requestcount)
+		{
+		  if(!strcmp(piece, request[i]))
+		    {		      
+		      strcpy(blockedby[blockedbycount], owningprocess);
+		      blockedbycount++;
+		      //process is blocked
+		      blocked = 1;
+		    }
+		    i++;
+		}
+	    }
+	}
+    }
+}
+
+void am_i_blocked()
+{
+  int i = 0;
+  if(blocked)
+    {
+      printf("I'm Blocked\n");
+      while(i < blockedbycount)
+	{
+	  printf("Process: %s is blocked by process %s\n", processName, blockedby[i]);
+	  printf("%d:%d:%c\n", processNumber, processNumber, blockedby[i][1]);
+	  i++;
+	}
+    }
+  else
+    {
+      //not blocked
+      printf("I'm Not Blocked\n");
+    }
+}
+
+
+void main_thread()
+{
+  while(!deadlocked)
+    {
+
+    }
+  //Kill process
+  printf("Process: %d is Deadlocked\n", processNumber);
   
+}
+
+void receiver_thread()
+{
+  while(1)
+    {
+      //initialization unnessecary delete after connection is up
+      char* probe = "init";
+      //read in probes
+
+      if(blocked)
+	{
+	  //blocked
+	  respond_to_probe(probe);
+	}
+      else
+	{
+	  //Not blocked: Discard Probe
+	}
+    }
+}
+
+//Send probe every 10 seconds unless deadlocked
+void sender_thread()
+{
+  while(blocked && !deadlocked)
+    {
+      //send probe every 10 seconds
+    }
+  printf("Stopping Probes, I am Deadlocked\n");
+}
+
+void respond_to_probe(char* probe)
+{
+  //Send response to probe
 }
