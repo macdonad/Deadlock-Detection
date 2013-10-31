@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <pthread.h>
 
 //Prototypes
 void read_file();
@@ -24,9 +25,9 @@ void check_requested();
 void owns_my_requested(char*);
 void am_i_blocked();
 void respond_to_probe(char*);
-void main_thread();
-void sender_thread();
-void receiver_thread();
+void *main_thread(void*);
+void *sender_thread(void*);
+void *receiver_thread(void*);
 
 //Globals
 int blocked = 0;
@@ -93,6 +94,25 @@ int main(int argc, char* argv[])
 	}
     }
   check_requested();
+
+  //Split into threads
+  int thread = 0;
+  //Main
+  pthread_t main_thread_id;
+  int mainthread = pthread_create(&main_thread_id, NULL, main_thread, (void *) &thread);
+  if(debug){printf("Main Thread Id: %d\n", mainthread);}
+
+  //Sender
+  thread++;
+  pthread_t sender_thread_id;
+  int senderthread = pthread_create(&sender_thread_id, NULL, sender_thread, (void *) &thread);
+  if(debug){printf("Sender Thread Id: %d\n", senderthread);}
+
+  //Receiver
+  thread++;
+  pthread_t receiver_thread_id;
+  int receiverthread = pthread_create(&receiver_thread_id, NULL, receiver_thread, (void *) &thread);
+  if(debug){printf("Receiver Thread Id: %d\n", receiverthread);}
 
   return 0;
 }
@@ -285,7 +305,7 @@ void am_i_blocked()
 }
 
 
-void main_thread()
+void *main_thread(void *arg)
 {
   while(!deadlocked)
     {
@@ -293,10 +313,10 @@ void main_thread()
     }
   //Kill process
   printf("Process: %d is Deadlocked\n", processNumber);
-  
+  return NULL;
 }
 
-void receiver_thread()
+void *receiver_thread(void *arg)
 {
   while(1)
     {
@@ -314,16 +334,19 @@ void receiver_thread()
 	  //Not blocked: Discard Probe
 	}
     }
+  return NULL;
 }
 
 //Send probe every 10 seconds unless deadlocked
-void sender_thread()
+void *sender_thread(void *arg)
 {
   while(blocked && !deadlocked)
     {
       //send probe every 10 seconds
     }
   printf("Stopping Probes, I am Deadlocked\n");
+
+  return NULL;
 }
 
 void respond_to_probe(char* probe)
