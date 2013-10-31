@@ -15,6 +15,9 @@
 #include <string.h>
 #include <signal.h>
 #include <pthread.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
 
 //Prototypes
 void read_file();
@@ -28,6 +31,10 @@ void respond_to_probe(char*);
 void *main_thread(void*);
 void *sender_thread(void*);
 void *receiver_thread(void*);
+void set_up_pipes();
+
+//Define
+#define MAX_BUF 1024
 
 //Globals
 int blocked = 0;
@@ -94,6 +101,8 @@ int main(int argc, char* argv[])
 	}
     }
   check_requested();
+
+  set_up_pipes();
 
   //Split into threads
   int thread = 0;
@@ -347,7 +356,8 @@ void *sender_thread(void *arg)
     {
       //send probe every 10 seconds
     }
-  printf("Stopping Probes, I am Deadlocked\n");
+
+  if(deadlocked){printf("Stopping Probes, I am Deadlocked\n");}
 
   pthread_exit(NULL);
 }
@@ -355,4 +365,21 @@ void *sender_thread(void *arg)
 void respond_to_probe(char* probe)
 {
   //Send response to probe
+}
+
+void set_up_pipes()
+{
+  int fd;
+  char* pipename = "PipeProcess1To2";
+  char buf[MAX_BUF];
+
+  mkfifo(pipename, 0666);
+
+  fd = open(pipename, S_IWUSR | S_IRUSR);
+  write(fd, "Hi", sizeof("Hi"));
+
+  close(fd);
+
+
+  unlink(pipename);
 }
