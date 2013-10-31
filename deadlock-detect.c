@@ -114,7 +114,7 @@ int main(int argc, char* argv[])
   int receiverthread = pthread_create(&receiver_thread_id, NULL, receiver_thread, (void *) &thread);
   if(debug){printf("Receiver Thread Id: %d\n", receiverthread);}
 
-  return 0;
+  pthread_exit(0);
 }
 
 void read_file()
@@ -250,7 +250,7 @@ void check_requested()
     }
   free(buffer);
 
-  if(debug){am_i_blocked();}
+  am_i_blocked();
 }
 
 void owns_my_requested(char* line)
@@ -292,8 +292,8 @@ void am_i_blocked()
       printf("I'm Blocked\n");
       while(i < blockedbycount)
 	{
-	  printf("Process: %s is blocked by process %s\n", processName, blockedby[i]);
-	  printf("%d:%d:%c\n", processNumber, processNumber, blockedby[i][1]);
+	  if(debug){printf("Process: %s is blocked by process %s\n", processName, blockedby[i]);}
+	  if(debug){printf("%d:%d:%c\n", processNumber, processNumber, blockedby[i][1]);}
 	  i++;
 	}
     }
@@ -307,17 +307,19 @@ void am_i_blocked()
 
 void *main_thread(void *arg)
 {
+  printf("Main Standing By\n");
   while(!deadlocked)
     {
 
     }
   //Kill process
   printf("Process: %d is Deadlocked\n", processNumber);
-  return NULL;
+  pthread_exit(NULL);
 }
 
 void *receiver_thread(void *arg)
 {
+  printf("Receiver Standing By\n");
   while(1)
     {
       //initialization unnessecary delete after connection is up
@@ -334,19 +336,20 @@ void *receiver_thread(void *arg)
 	  //Not blocked: Discard Probe
 	}
     }
-  return NULL;
+  pthread_exit(NULL);
 }
 
 //Send probe every 10 seconds unless deadlocked
 void *sender_thread(void *arg)
 {
+  printf("Sender Standing By\n");
   while(blocked && !deadlocked)
     {
       //send probe every 10 seconds
     }
   printf("Stopping Probes, I am Deadlocked\n");
 
-  return NULL;
+  pthread_exit(NULL);
 }
 
 void respond_to_probe(char* probe)
