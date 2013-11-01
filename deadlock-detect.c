@@ -50,10 +50,10 @@ char own[10][3];
 int owncount = 0;
 char request[10][3];
 int requestcount = 0;
-
+int fd;
 char blockedby[10][3];
 int blockedbycount = 0;
-
+char* pipename;
 char* filename;
 
 //Main
@@ -209,6 +209,12 @@ void handle_line(char* line)
 
 void handle_signal(int sigNum)
 {
+  if(pipename != NULL)
+    {
+      close(fd);
+      unlink(pipename);
+      printf("\nPipe Disabled\n");
+    }
   printf("\nUggggghhhhhh...... Death. Process %s has died.\n", processName);
   exit(0);
 }
@@ -329,20 +335,28 @@ void *main_thread(void *arg)
 void *receiver_thread(void *arg)
 {
   printf("Receiver Standing By\n");
+  char* probe = "init";
   while(1)
     {
       //initialization unnessecary delete after connection is up
-      char* probe = "init";
       //read in probes
 
-      if(blocked)
+      if(probe != NULL)
 	{
-	  //blocked
-	  respond_to_probe(probe);
-	}
-      else
-	{
-	  //Not blocked: Discard Probe
+
+	  if(blocked)
+	    {
+	      //blocked
+	      printf("Process: %s, read in %s, I am Blocked, Responding to Probe\n", processName, probe);
+	      respond_to_probe(probe);
+	      blocked = 0;
+	    }
+	  else
+	    {
+	      //Not blocked: Discard Probe
+	      printf("Process: %s, read in %s, Not Blocked, Discarding...\n", processName, probe);
+	      probe = NULL;
+	    }
 	}
     }
   pthread_exit(NULL);
@@ -365,25 +379,24 @@ void *sender_thread(void *arg)
 void respond_to_probe(char* probe)
 {
   //Send response to probe
+  printf("Sending probe response...\n");
 }
 
 void set_up_pipes()
 {
-  int fd;
-  char* pipename = "PipeProcess1To2";
+  pipename = "PipeProcess1To2";
   char buf[MAX_BUF];
-
-  if(!mkfifo(pipename, 0666))
+  int errorNo;
+  errorNo = mkfifo(pipename, 0666);
+  if(errorNo == -1)
     {
-      perror("Error making fifo\n");
+      printf("Error making fifo: %d\n", errorNo);
       exit(0);
     }
   printf("Here\n");
   //fd = open(pipename, S_IWUSR | S_IRUSR);
   //write(fd, "Hi", sizeof("Hi"));
-
   close(fd);
-
 
   unlink(pipename);
 }
