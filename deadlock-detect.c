@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 //Prototypes
 void read_file();
@@ -394,9 +395,16 @@ void set_up_pipes()
       exit(0);
     }
   printf("Here\n");
-  //fd = open(pipename, S_IWUSR | S_IRUSR);
+  if(!(fd = open(pipename, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH)))
+    {
+      perror("ERRIR\n");
+    }
+  else
+    {
+      perror("eororor\n");
+    }
   //write(fd, "Hi", sizeof("Hi"));
   close(fd);
-
+  printf("here2\n");
   unlink(pipename);
 }
