@@ -135,6 +135,7 @@ int main(int argc, char* argv[])
   int receiverthread = pthread_create(&receiver_thread_id, NULL, receiver_thread, (void *) &thread);
   if(debug){printf("Receiver Thread Id: %d\n", receiverthread);}
 
+  printf("\n\nEnd of Main.\n\n");
   pthread_exit(0);
 }
 
@@ -366,16 +367,13 @@ void *main_thread(void *arg)
 void *receiver_thread(void *arg)
 {
   printf("Receiver Standing By\n");
-  char* probe = "init";
+  char* probe = "0:0:0\n";
   while(1)
     {
-      //initialization unnessecary delete after connection is up
       //read in probes
-      printf("Shared Memory: %s\n", sharedPtr);
-      sleep(10);
+      printf("%s\n", sharedPtr);
       if(probe != NULL)
 	{
-
 	  if(blocked)
 	    {
 	      //blocked
@@ -400,7 +398,21 @@ void *sender_thread(void *arg)
   printf("Sender Standing By\n");
   while(blocked && !deadlocked)
     {
+      char probe[6];
+      int i = 0;
+      while(i < blockedbycount)
+	{
+	  if(debug)printf("Receiver: %c, blockedCount = %d\n", blockedby[i][1], blockedbycount);
+	  //write probe to shared memory
+	  sprintf(probe, "%d:%d:%c\n", processNumber, processNumber, blockedby[i][1]);
+	  printf("%s\n", probe);
+	  sprintf(sharedPtr, probe);
+	  i++;
+	}
       //send probe every 10 seconds
+      printf("sender sleeping\n\n");
+      sleep(10);
+      printf("sender waking up\n\n");
     }
 
   if(deadlocked){printf("Stopping Probes, I am Deadlocked\n");}
@@ -419,7 +431,7 @@ void set_up_smem()
   // Set up shared Memory, every process will read it, then when all have read, someone can write.
   
   key_t mem_key = ftok("key", 0);
-  pid_t my_pid = getpid();
+  //pid_t my_pid = getpid();
   int size = 1024;
 
   //create shared mem
@@ -445,9 +457,6 @@ void set_up_smem()
       clean_and_exit();
       exit(-1);
     }
-
-  sprintf(sharedPtr, processName);
-  printf("Shared Memory: %s\n", sharedPtr);
 }
 
 void clean_and_exit()
