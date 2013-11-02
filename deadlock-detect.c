@@ -371,7 +371,8 @@ void *receiver_thread(void *arg)
     {
       //initialization unnessecary delete after connection is up
       //read in probes
-
+      printf("Shared Memory: %s\n", sharedPtr);
+      sleep(10);
       if(probe != NULL)
 	{
 
@@ -416,8 +417,7 @@ void respond_to_probe(char* probe)
 void set_up_smem()
 {
   // Set up shared Memory, every process will read it, then when all have read, someone can write.
-  int totalProcesses = processcount;
-
+  
   key_t mem_key = ftok("key", 0);
   pid_t my_pid = getpid();
   int size = 1024;
@@ -445,6 +445,9 @@ void set_up_smem()
       clean_and_exit();
       exit(-1);
     }
+
+  sprintf(sharedPtr, processName);
+  printf("Shared Memory: %s\n", sharedPtr);
 }
 
 void clean_and_exit()
