@@ -19,6 +19,8 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 
 //Prototypes
 void read_file();
@@ -32,7 +34,8 @@ void respond_to_probe(char*);
 void *main_thread(void*);
 void *sender_thread(void*);
 void *receiver_thread(void*);
-void set_up_pipes();
+void set_up_smem();
+void clean_and_exit();
 
 //Define
 #define MAX_BUF 1024
@@ -43,6 +46,9 @@ char* blockingProcess;
 int processNumber;
 char* processName;
 
+char processes[10][3];
+int processcount = 0;
+
 int deadlocked = 0;
 int debug = 0;
 int sendprobes = 0;
@@ -51,11 +57,14 @@ char own[10][3];
 int owncount = 0;
 char request[10][3];
 int requestcount = 0;
-int fd;
+
 char blockedby[10][3];
 int blockedbycount = 0;
-char* pipename;
+
 char* filename;
+
+char* sharedPtr;
+int shmId;
 
 //Main
 int main(int argc, char* argv[])
@@ -81,6 +90,8 @@ int main(int argc, char* argv[])
 
   //read in file
   read_file();
+  printf("Total Number of Processes: %d\n", processcount);
+
 
   //Print what I own
   if(debug)
@@ -103,7 +114,7 @@ int main(int argc, char* argv[])
     }
   check_requested();
 
-  set_up_pipes();
+  set_up_smem();
 
   //Split into threads
   int thread = 0;
@@ -171,6 +182,30 @@ void handle_line(char* line)
 
   //Process
   piece = strtok(line, s);
+  if(processcount == 0)
+    {
+      strcpy(processes[processcount], piece);
+      processcount++;
+    }
+  else
+    {
+      int i = 0;
+      int found = 0;
+      while(i < processcount)
+	{
+	  if(!strcmp(piece, processes[i]))
+	    {
+	      found = 1;
+	    }
+	  i++;
+	}
+      if(!found)
+	{
+	  strcpy(processes[processcount], piece);
+	  processcount++;
+	}
+    }
+
   if(!strcmp(piece, processName))
     {
       me = 1;
@@ -210,13 +245,8 @@ void handle_line(char* line)
 
 void handle_signal(int sigNum)
 {
-  if(pipename != NULL)
-    {
-      close(fd);
-      unlink(pipename);
-      printf("\nPipe Disabled\n");
-    }
   printf("\nUggggghhhhhh...... Death. Process %s has died.\n", processName);
+  clean_and_exit();
   exit(0);
 }
 
@@ -383,28 +413,42 @@ void respond_to_probe(char* probe)
   printf("Sending probe response...\n");
 }
 
-void set_up_pipes()
+void set_up_smem()
 {
-  pipename = "PipeProcess1To2";
-  char buf[MAX_BUF];
-  int errorNo;
-  errorNo = mkfifo(pipename, 0666);
-  if(errorNo == -1)
+  // Set up shared Memory, every process will read it, then when all have read, someone can write.
+  int totalProcesses = processcount;
+
+  key_t mem_key = ftok("key", 0);
+  pid_t my_pid = getpid();
+  int size = 1024;
+
+  //create shared mem
+  if(processNumber == 1)
     {
-      printf("Error making fifo: %d\n", errorNo);
-      exit(0);
-    }
-  printf("Here\n");
-  if(!(fd = open(pipename, S_IWUSR | S_IRUSR | S_IRGRP | S_IROTH)))
-    {
-      perror("ERRIR\n");
+      shmId = shmget(mem_key, size, IPC_CREAT|S_IRUSR|S_IWUSR); 
     }
   else
     {
-      perror("eororor\n");
+      shmId = shmget(mem_key, size, S_IRUSR|S_IWUSR);
     }
-  //write(fd, "Hi", sizeof("Hi"));
-  close(fd);
-  printf("here2\n");
-  unlink(pipename);
+  if(shmId < 0)
+    {
+      printf("Failed Shared Memory Create.\n");
+      exit(-1);
+    }
+
+  //attach to shared mem
+  sharedPtr = shmat(shmId, (void*)0, 0);
+  if(sharedPtr < 0)
+    {
+      printf("failed to attach\n");
+      clean_and_exit();
+      exit(-1);
+    }
+}
+
+void clean_and_exit()
+{
+  shmctl(shmId, IPC_RMID, 0);
+  exit(0);
 }
