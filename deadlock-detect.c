@@ -30,7 +30,7 @@ void debug_set();
 void check_requested();
 void owns_my_requested(char*);
 void am_i_blocked();
-void respond_to_probe(char*);
+void send_probe(char*);
 void *main_thread(void*);
 void *sender_thread(void*);
 void *receiver_thread(void*);
@@ -65,6 +65,8 @@ char* filename;
 
 char* sharedPtr;
 int shmId;
+
+int messageId = 0;
 
 //Main
 int main(int argc, char* argv[])
@@ -367,25 +369,47 @@ void *main_thread(void *arg)
 void *receiver_thread(void *arg)
 {
   printf("Receiver Standing By\n");
-  char* probe = "0:0:0\n";
+  //Message Id, Read Count, Message ( Blocked Process :  Sender : Receiver)
+  char* probe;
   while(1)
     {
       //read in probes
-      printf("%s\n", sharedPtr);
-      if(probe != NULL)
+      sprintf(sharedPtr, "%d%d%c:%c:%c", 1, processcount, processNumber, processNumber, blockedby[0][1]);
+      if(messageId < (int)sharedPtr[0])
 	{
-	  if(blocked)
+	  messageId = (int)sharedPtr[0];
+	  printf("MessageId: %d", messageId);
+
+	  probe = (char*)sharedPtr;
+	  printf("%s\n", probe);
+	  if(probe != NULL)
 	    {
-	      //blocked
-	      printf("Process: %s, read in %s, I am Blocked, Responding to Probe\n", processName, probe);
-	      respond_to_probe(probe);
-	      blocked = 0;
-	    }
-	  else
-	    {
-	      //Not blocked: Discard Probe
-	      printf("Process: %s, read in %s, Not Blocked, Discarding...\n", processName, probe);
-	      probe = NULL;
+	      if(blocked)
+		{
+		  //blocked
+		  //MessageId ReadCount, Message(BlockedProcess:Sender:Receiver)
+		  //001:2:3
+
+		  if((int)sharedPtr[2] == processcount)
+		    {
+		      printf("Process: %s, read in %s, I am Blocked, Responding to Probe\n", processName, probe);
+		      probe[0] = probe[0]++;
+		      probe[1] = 0;
+		      printf("1\n");
+		      probe[4] = processNumber;
+		      printf("2\n");
+		      probe[6] = blockedby[0][1];
+		      printf("New Probe %s\n", probe);
+		      
+		      send_probe(probe);
+		    }
+		}
+	      else
+		{
+		  //Not blocked: Discard Probe
+		  printf("Process: %s, read in %s, Not Blocked, Discarding...\n", processName, probe);
+		  probe = NULL;
+		}
 	    }
 	}
     }
@@ -404,15 +428,13 @@ void *sender_thread(void *arg)
 	{
 	  if(debug)printf("Receiver: %c, blockedCount = %d\n", blockedby[i][1], blockedbycount);
 	  //write probe to shared memory
-	  sprintf(probe, "%d:%d:%c\n", processNumber, processNumber, blockedby[i][1]);
+	  sprintf(probe, "%d;%d:%d:%c\n", messageId, processNumber, processNumber, blockedby[i][1]);
 	  printf("%s\n", probe);
-	  sprintf(sharedPtr, probe);
+	  send_probe(probe);
 	  i++;
 	}
       //send probe every 10 seconds
-      printf("sender sleeping\n\n");
       sleep(10);
-      printf("sender waking up\n\n");
     }
 
   if(deadlocked){printf("Stopping Probes, I am Deadlocked\n");}
@@ -420,7 +442,7 @@ void *sender_thread(void *arg)
   pthread_exit(NULL);
 }
 
-void respond_to_probe(char* probe)
+void send_probe(char* probe)
 {
   //Send response to probe
   printf("Sending probe response...\n");
@@ -457,6 +479,7 @@ void set_up_smem()
       clean_and_exit();
       exit(-1);
     }
+  
 }
 
 void clean_and_exit()
