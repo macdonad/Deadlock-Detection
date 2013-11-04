@@ -382,24 +382,25 @@ void *receiver_thread(void *arg)
   int readcount;
   char* message;
   char* temp;
+  int newmessageid;
   while(1)
     {
       //read in probes
       //printf("Process Count: %d\nProcessNumber: %d\nBlockedBy: %c\n", processcount, processNumber, blockedby[0][1]);
       //sprintf(sharedPtr, "%d%d%d:%d:%c", 1, processcount, processNumber, processNumber, blockedby[0][1]);
       
-      temp = strtok(sharedPtr, splitter);
-      printf("temp: %s\n", temp);
-      messageId = atoi(temp);
+      temp = (char*)malloc(strlen(sharedPtr) + 1);
+      strcpy(temp, sharedPtr);
+      newmessageid = atoi(strtok(temp, splitter));
       printf("MessageId: %d", messageId);
 
-      if(messageId < (int)sharedPtr[0])
+      if(messageId < newmessageid)
 	{
 	  printf("Receiver turn: Shared Memory = %s\n", sharedPtr);
   
 	  //inc read count
-	  //	  readcount = atoi(strtok(NULL, splitter));
-	  //	  readcount++;
+	  readcount = atoi(strtok(NULL, splitter));
+	  readcount++;
 
 	  //0:0:0
 	  message = strtok(NULL, splitter);
@@ -438,6 +439,7 @@ void *receiver_thread(void *arg)
 		}
 	    }
 	}
+      free(temp);
     }
   pthread_exit(NULL);
 }
@@ -475,14 +477,27 @@ void send_probe(char* probe)
   int readcount;
   int messageId;
   char* message;
-  messageId = atoi(strtok(sharedPtr, splitter));
+  char* temp;
+  
+  temp = (char*)malloc(strlen(sharedPtr) + 1);
+  strcpy(temp, sharedPtr);
+  
+  messageId = atoi(strtok(temp, splitter));
   readcount = atoi(strtok(NULL, splitter));
   message = strtok(NULL, splitter);
+  
+  free(temp);
+
   while(readcount < processcount)
     {
-      messageId = atoi(strtok(sharedPtr, splitter));
+      temp = (char*)malloc(strlen(sharedPtr) + 1);
+      strcpy(temp, sharedPtr);
+
+      messageId = atoi(strtok(temp, splitter));
       readcount = atoi(strtok(NULL, splitter));
       message = strtok(NULL, splitter);  
+      
+      free(temp);
     }
   //Send response to probe
   if(debug){printf("Sending probe response...\n");}
