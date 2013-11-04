@@ -66,6 +66,8 @@ char* filename;
 char* sharedPtr;
 int shmId;
 
+char* splitter = "#";
+
 int messageId = 0;
 
 //Main
@@ -377,21 +379,30 @@ void *receiver_thread(void *arg)
   if(debug){printf("Receiver Standing By\n");}
   //Message Id, Read Count, Message ( Blocked Process :  Sender : Receiver)
   char* probe;
+  int readcount;
+  char* message;
+  char* temp;
   while(1)
     {
       //read in probes
       //printf("Process Count: %d\nProcessNumber: %d\nBlockedBy: %c\n", processcount, processNumber, blockedby[0][1]);
       //sprintf(sharedPtr, "%d%d%d:%d:%c", 1, processcount, processNumber, processNumber, blockedby[0][1]);
+      
+      temp = strtok(sharedPtr, splitter);
+      printf("temp: %s\n", temp);
+      messageId = atoi(temp);
+      printf("MessageId: %d", messageId);
 
       if(messageId < (int)sharedPtr[0])
 	{
-	  printf("Receiver turn: Shared Memory = %s\n", (char*)sharedPtr);
-	  
+	  printf("Receiver turn: Shared Memory = %s\n", sharedPtr);
+  
 	  //inc read count
-	  sharedPtr[1]++;
-	  messageId = (int)sharedPtr[0];
-	  printf("MessageId: %d", messageId);
+	  //	  readcount = atoi(strtok(NULL, splitter));
+	  //	  readcount++;
 
+	  //0:0:0
+	  message = strtok(NULL, splitter);
 	  probe = (char*)sharedPtr;
 	  if(debug){printf("%s\n", probe);}
 	  if(probe != NULL)
@@ -399,21 +410,21 @@ void *receiver_thread(void *arg)
 	      if(blocked)
 		{
 		  //blocked
-		  //MessageId ReadCount, Message(BlockedProcess:Sender:Receiver)
-		  //001:2:3
+		  //MessageId#ReadCount#Message(BlockedProcess:Sender:Receiver)
+		  //0#0#1:2:3
 
-		  if((int)sharedPtr[6] == processNumber)
+		  if(message[4] == processNumber)
 		    {
-		      if((int)sharedPtr[0] == processNumber)
+		      if(message[0] == processNumber)
 			{
 			  //deadlocked
 			  deadlocked = 1;
 			}
 		      if(debug){printf("Process: %s, read in %s, I am Blocked, Responding to Probe\n", processName, probe);}
 		      probe[0] = messageId++;
-		      probe[1] = 0;
-		      probe[4] = processNumber;
-		      probe[6] = blockedby[0][1];
+		      probe[2] = 0;
+		      probe[6] = processNumber;
+		      probe[7] = blockedby[0][1];
 		      if(debug){printf("New Probe %s\n", probe);}
 		      
 		      send_probe(probe);			 
@@ -444,7 +455,7 @@ void *sender_thread(void *arg)
 	{
 	  if(debug)printf("Receiver: %c, blockedCount = %d\n", blockedby[i][1], blockedbycount);
 	  //write probe to shared memory
-	  sprintf(probe, "%d%d%d:%d:%c\n", messageId++, 0, processNumber, processNumber, blockedby[i][1]);
+	  sprintf(probe, "%d#%d#%d:%d:%c\n", messageId++, 0, processNumber, processNumber, blockedby[i][1]);
 	  if(debug){printf("%s\n", probe);}
 	  send_probe(probe);
 	  i++;
@@ -461,7 +472,18 @@ void *sender_thread(void *arg)
 void send_probe(char* probe)
 {
   if(debug){printf("Entered Send Probe: Probe = %s\n", (char*)probe);}
-  while((int)sharedPtr[2] < processcount);
+  int readcount;
+  int messageId;
+  char* message;
+  messageId = atoi(strtok(sharedPtr, splitter));
+  readcount = atoi(strtok(NULL, splitter));
+  message = strtok(NULL, splitter);
+  while(readcount < processcount)
+    {
+      messageId = atoi(strtok(sharedPtr, splitter));
+      readcount = atoi(strtok(NULL, splitter));
+      message = strtok(NULL, splitter);  
+    }
   //Send response to probe
   if(debug){printf("Sending probe response...\n");}
   sprintf(sharedPtr, "%s", probe);
@@ -521,7 +543,8 @@ void set_up_smem()
       clean_and_exit();
       exit(-1);
     }
-  sprintf(sharedPtr, "%d%d%d:%d:%c", 0,0,0,0,'0');
+  sprintf(sharedPtr, "%d#%d#%d:%d:%c", 0,0,0,0,'0');
+  printf("Shared Mem Created: %s\n", sharedPtr);
 }
 
 void clean_and_exit()
