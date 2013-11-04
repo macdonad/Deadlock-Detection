@@ -338,7 +338,7 @@ void am_i_blocked()
   int i = 0;
   if(blocked)
     {
-      printf("I'm Blocked\n");
+      if(debug){printf("I'm Blocked\n");}
       while(i < blockedbycount)
 	{
 	  if(debug){printf("Process: %s is blocked by process %s\n", processName, blockedby[i]);}
@@ -356,32 +356,41 @@ void am_i_blocked()
 
 void *main_thread(void *arg)
 {
-  printf("Main Standing By\n");
+  if(debug){printf("Main Standing By\n");}
   while(!deadlocked)
     {
-
+      if(debug)
+	{
+	  printf("Main Turn: Shared Mem = %s\n", (char*)sharedPtr);
+	  sleep(1);
+	}
     }
   //Kill process
-  printf("Process: %d is Deadlocked\n", processNumber);
+  int pid = getpid();
+  printf("***Process: %s (PID: %d) is Deadlocked.***\n", processName, pid);
+  if(debug){printf("Process: %d is Deadlocked\n", processNumber);}
   pthread_exit(NULL);
 }
 
 void *receiver_thread(void *arg)
 {
-  printf("Receiver Standing By\n");
+  if(debug){printf("Receiver Standing By\n");}
   //Message Id, Read Count, Message ( Blocked Process :  Sender : Receiver)
   char* probe;
   while(1)
     {
       //read in probes
-      sprintf(sharedPtr, "%d%d%c:%c:%c", 1, processcount, processNumber, processNumber, blockedby[0][1]);
+      //printf("Process Count: %d\nProcessNumber: %d\nBlockedBy: %c\n", processcount, processNumber, blockedby[0][1]);
+      //sprintf(sharedPtr, "%d%d%d:%d:%c", 1, processcount, processNumber, processNumber, blockedby[0][1]);
+      if(debug){printf("Receiver turn: Shared Memory = %s\n", (char*)sharedPtr);}
+
       if(messageId < (int)sharedPtr[0])
 	{
 	  messageId = (int)sharedPtr[0];
-	  printf("MessageId: %d", messageId);
+	  if(debug){printf("MessageId: %d", messageId);}
 
 	  probe = (char*)sharedPtr;
-	  printf("%s\n", probe);
+	  if(debug){printf("%s\n", probe);}
 	  if(probe != NULL)
 	    {
 	      if(blocked)
@@ -390,24 +399,27 @@ void *receiver_thread(void *arg)
 		  //MessageId ReadCount, Message(BlockedProcess:Sender:Receiver)
 		  //001:2:3
 
-		  if((int)sharedPtr[2] == processcount)
+		  if((int)sharedPtr[6] == processNumber)
 		    {
-		      printf("Process: %s, read in %s, I am Blocked, Responding to Probe\n", processName, probe);
+		      if((int)sharedPtr[0] == processNumber)
+			{
+			  //deadlocked
+			  deadlocked = 1;
+			}
+		      if(debug){printf("Process: %s, read in %s, I am Blocked, Responding to Probe\n", processName, probe);}
 		      probe[0] = probe[0]++;
 		      probe[1] = 0;
-		      printf("1\n");
 		      probe[4] = processNumber;
-		      printf("2\n");
 		      probe[6] = blockedby[0][1];
-		      printf("New Probe %s\n", probe);
+		      if(debug){printf("New Probe %s\n", probe);}
 		      
-		      send_probe(probe);
+		      send_probe(probe);			 
 		    }
 		}
 	      else
 		{
 		  //Not blocked: Discard Probe
-		  printf("Process: %s, read in %s, Not Blocked, Discarding...\n", processName, probe);
+		  if(debug){printf("Process: %s, read in %s, Not Blocked, Discarding...\n", processName, probe);}
 		  probe = NULL;
 		}
 	    }
@@ -419,17 +431,18 @@ void *receiver_thread(void *arg)
 //Send probe every 10 seconds unless deadlocked
 void *sender_thread(void *arg)
 {
-  printf("Sender Standing By\n");
+  if(debug){printf("Sender Standing By\n");}
   while(blocked && !deadlocked)
     {
+      if(debug){printf("Sender Turn: Shared Memory = %s\n", (char*)sharedPtr);}
       char probe[6];
       int i = 0;
       while(i < blockedbycount)
 	{
 	  if(debug)printf("Receiver: %c, blockedCount = %d\n", blockedby[i][1], blockedbycount);
 	  //write probe to shared memory
-	  sprintf(probe, "%d;%d:%d:%c\n", messageId, processNumber, processNumber, blockedby[i][1]);
-	  printf("%s\n", probe);
+	  sprintf(probe, "%d%d%d:%d:%c\n", messageId, 0, processNumber, processNumber, blockedby[i][1]);
+	  if(debug){printf("%s\n", probe);}
 	  send_probe(probe);
 	  i++;
 	}
@@ -437,15 +450,34 @@ void *sender_thread(void *arg)
       sleep(10);
     }
 
-  if(deadlocked){printf("Stopping Probes, I am Deadlocked\n");}
+  if(debug){if(deadlocked){printf("Stopping Probes, I am Deadlocked\n");}}
 
   pthread_exit(NULL);
 }
 
 void send_probe(char* probe)
 {
+  if(debug){printf("Entered Send Probe: Probe = %s\n", (char*)probe);}
+  while((int)sharedPtr[2] < processcount);
   //Send response to probe
-  printf("Sending probe response...\n");
+  if(debug){printf("Sending probe response...\n");}
+  sprintf(sharedPtr, "%s", probe);
+  int pid = getpid();
+  if(blocked)
+    {
+      if(deadlocked)
+	{
+	  printf("Process: %s (PID: %d), is deadlocked, sent a new probe.\n", processName, pid);
+	}
+      else
+	{
+	  printf("Process: %s (PID: %d), is blocked, sent a new probe.\n", processName, pid);
+	}
+    }
+  else
+    {
+      printf("Process: %s (PID: %d), is not blocked, sent a new probe.\n", processName, pid);
+    }
 }
 
 void set_up_smem()
@@ -457,7 +489,13 @@ void set_up_smem()
   int size = 1024;
 
   //create shared mem
-  if(processNumber == 1)
+  //First Process to get here will fail then create mem, other processes won't fail and will not create more shared mem.
+  shmId = shmget(mem_key, size, S_IRUSR|S_IWUSR);
+  if(shmId < 0)
+    {
+       shmId = shmget(mem_key, size, IPC_CREAT|S_IRUSR|S_IWUSR); 
+    }
+  /*  if(processNumber == 1)
     {
       shmId = shmget(mem_key, size, IPC_CREAT|S_IRUSR|S_IWUSR); 
     }
@@ -465,6 +503,7 @@ void set_up_smem()
     {
       shmId = shmget(mem_key, size, S_IRUSR|S_IWUSR);
     }
+  */
   if(shmId < 0)
     {
       printf("Failed Shared Memory Create.\n");
@@ -479,7 +518,7 @@ void set_up_smem()
       clean_and_exit();
       exit(-1);
     }
-  
+  sprintf(sharedPtr, "%d%d%d:%d:%c", 0,0,0,0,'0');
 }
 
 void clean_and_exit()
