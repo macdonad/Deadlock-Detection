@@ -92,7 +92,7 @@ int main(int argc, char* argv[])
 
   //read in file
   read_file();
-  printf("Total Number of Processes: %d\n", processcount);
+  if(debug){printf("Total Number of Processes: %d\n", processcount);}
 
 
   //Print what I own
@@ -137,7 +137,7 @@ int main(int argc, char* argv[])
   int receiverthread = pthread_create(&receiver_thread_id, NULL, receiver_thread, (void *) &thread);
   if(debug){printf("Receiver Thread Id: %d\n", receiverthread);}
 
-  printf("\n\nEnd of Main.\n\n");
+  if(debug){printf("\n\nEnd of Main.\n\n");}
   pthread_exit(0);
 }
 
@@ -382,12 +382,15 @@ void *receiver_thread(void *arg)
       //read in probes
       //printf("Process Count: %d\nProcessNumber: %d\nBlockedBy: %c\n", processcount, processNumber, blockedby[0][1]);
       //sprintf(sharedPtr, "%d%d%d:%d:%c", 1, processcount, processNumber, processNumber, blockedby[0][1]);
-      if(debug){printf("Receiver turn: Shared Memory = %s\n", (char*)sharedPtr);}
 
       if(messageId < (int)sharedPtr[0])
 	{
+	  printf("Receiver turn: Shared Memory = %s\n", (char*)sharedPtr);
+	  
+	  //inc read count
+	  sharedPtr[1]++;
 	  messageId = (int)sharedPtr[0];
-	  if(debug){printf("MessageId: %d", messageId);}
+	  printf("MessageId: %d", messageId);
 
 	  probe = (char*)sharedPtr;
 	  if(debug){printf("%s\n", probe);}
@@ -407,7 +410,7 @@ void *receiver_thread(void *arg)
 			  deadlocked = 1;
 			}
 		      if(debug){printf("Process: %s, read in %s, I am Blocked, Responding to Probe\n", processName, probe);}
-		      probe[0] = probe[0]++;
+		      probe[0] = messageId++;
 		      probe[1] = 0;
 		      probe[4] = processNumber;
 		      probe[6] = blockedby[0][1];
@@ -441,7 +444,7 @@ void *sender_thread(void *arg)
 	{
 	  if(debug)printf("Receiver: %c, blockedCount = %d\n", blockedby[i][1], blockedbycount);
 	  //write probe to shared memory
-	  sprintf(probe, "%d%d%d:%d:%c\n", messageId, 0, processNumber, processNumber, blockedby[i][1]);
+	  sprintf(probe, "%d%d%d:%d:%c\n", messageId++, 0, processNumber, processNumber, blockedby[i][1]);
 	  if(debug){printf("%s\n", probe);}
 	  send_probe(probe);
 	  i++;
