@@ -392,8 +392,8 @@ void *receiver_thread(void *arg)
       strcpy(temp, sharedPtr);
       if(debug){printf("Rec: Temp: %s\n", temp);}
       newmessageid = atoi(strtok(temp, splitter));
-      printf("Rec: MId:%d\n", newmessageid);
-      printf("Rec: MessageId:%d\n", messageId);
+      if(debug){printf("Rec: MId:%d\n", newmessageid);}
+      if(debug){printf("Rec: MessageId:%d\n", messageId);}
       free(temp);
       if(messageId < newmessageid)
 	{
@@ -412,11 +412,12 @@ void *receiver_thread(void *arg)
 	  if(debug){printf("readcount: %d\n", readcount);}
 	  //0:0:0
 	  message = strtok(NULL, splitter);
+	  if(debug){printf("Message in Rec: %s\n", message);}
 	  free(temp);
 
 	  //Put shared memory back with inc read count
 	  sprintf(sharedPtr, "%d#%d#%s", newmessageid, readcount, message);
-	  printf("New Shared Mem, after inc: %s\n", (char*)sharedPtr);
+	  if(debug){printf("New Shared Mem, after inc: %s\n", (char*)sharedPtr);}
 
 	  if(debug){printf("message: %s\n", message);}
 	  probe = (char*)malloc(strlen(sharedPtr) + 1);
@@ -438,7 +439,7 @@ void *receiver_thread(void *arg)
 			  deadlocked = 1;
 			}
 		      if(debug){printf("Process: %s, read in %s, I am Blocked, Responding to Probe\n", processName, probe);}
-		      sprintf(probe, "%d#%d#%d:%d:%c", messageId++, 0, message[0], processNumber, blockedby[0][1]);
+		      sprintf(probe, "%d#%d#%d:%d:%c", messageId + 1, 0, message[0], processNumber, blockedby[0][1]);
 		      if(debug){printf("New Probe %s\n", probe);}
 		      
 		      send_probe(probe);			 
@@ -472,7 +473,7 @@ void *sender_thread(void *arg)
 	  if(debug)printf("Receiver: %c, blockedCount = %d\n", blockedby[i][1], blockedbycount);
 	  //write probe to shared memory
 	  sprintf(probe, "%d#%d#%d:%d:%c\n", messageId + 1, 0, processNumber, processNumber, blockedby[i][1]);
-	  printf("New Probe: %s\n", probe);
+	  if(debug){printf("New Probe: %s\n", probe);}
 	  send_probe(probe);
 	  i++;
 	}
@@ -498,17 +499,19 @@ void send_probe(char* probe)
   newmessageid = atoi(strtok(temp, splitter));
   readcount = atoi(strtok(NULL, splitter));
   message = strtok(NULL, splitter);
+  if(debug){printf("Message before loop in send: %s\n", message);}
   free(temp);
 
   while(readcount < processcount)
     {
-      printf("Sender in loop?\nReadCount: %d\nProcessCount:%d\n", readcount, processcount);
+      if(debug){printf("Sender in loop?\nReadCount: %d\nProcessCount:%d\n", readcount, processcount);}
       sleep(1);
       temp = (char*)malloc(strlen(sharedPtr) + 1);
       strcpy(temp, sharedPtr);
       newmessageid = atoi(strtok(temp, splitter));
       readcount = atoi(strtok(NULL, splitter));
       message = strtok(NULL, splitter);        
+      if(debug){printf("Message in send: %s\n", message);}
       free(temp);
     }
   //Send response to probe
@@ -571,7 +574,7 @@ void set_up_smem()
   if(creator)
     {
       sprintf(sharedPtr, "%d#%d#%d:%d:%c", 0,0,0,0,'0');
-      printf("Init Message: %s\n", sharedPtr);
+      if(debug){printf("Init Message: %s\n", sharedPtr);}
     }
 }
 
