@@ -395,7 +395,7 @@ void *receiver_thread(void *arg)
       if(debug){printf("Rec: MId:%d\n", messageId);}
       if(debug){printf("Rec: New MessageId:%d\n", newmessageid);}
 
-      printf("Received new probe, Message Id:%d, new messageid:%d\nProbe:%s\n", messageId, newmessageid, (char*)sharedPtr);
+      if(debug){printf("Received new probe, Message Id:%d, new messageid:%d\nProbe:%s\n", messageId, newmessageid, (char*)sharedPtr);}
 
       if(messageId < newmessageid)
 	{
@@ -420,7 +420,7 @@ void *receiver_thread(void *arg)
 
 	  //Put shared memory back with inc read count
 	  printf("Incremented Read Count\n");
-	  printf("Message: %s\n", message);
+	  if(debug){printf("Message: %s\n", message);}
 	  sprintf(sharedPtr, "%d#%d#%s", newmessageid, readcount, message);
 	  if(debug){printf("New Shared Mem, after inc: %s\n", (char*)sharedPtr);}
 
@@ -430,30 +430,37 @@ void *receiver_thread(void *arg)
 	  if(debug){printf("%s\n", probe);}
 	  if(probe != NULL && newmessageid != 0)
 	    {
+	      printf("Message: %s\n", message);
 	      if(blocked)
 		{
 		  //blocked
 		  //MessageId#ReadCount#Message(BlockedProcess:Sender:Receiver)
 		  //0#0#1:2:3
-
-		  if(message[4] == processNumber)
+		  
+		  if((message[4] - '0') == processNumber)
 		    {
 		      if(message[0] == processNumber)
 			{
 			  //deadlocked
+			  printf("Set Deadlocked flag\n");
 			  deadlocked = 1;
 			}
-		      if(debug){printf("Process: %s, read in %s, I am Blocked, Responding to Probe\n", processName, probe);}
-		      sprintf(probe, "%d#%d#%d:%d:%c", messageId + 1, 0, message[0], processNumber, blockedby[0][1]);
-		      if(debug){printf("New Probe %s\n", probe);}
+		      printf("Process: %s, read in %s, I am Blocked, Responding to Probe\n", processName, message);
+
+		      sprintf(probe, "%d#%d#%c:%d:%c", messageId + 1, 0, message[0], processNumber, blockedby[0][1]);
+		      printf("New Probe %s\n", probe);
 		      
 		      send_probe(probe);			 
+		    }
+		  else
+		    {
+		      printf("Message[4]: %c and ProcessNumber: %d are not equal\n", message[4], processNumber);
 		    }
 		}
 	      else
 		{
 		  //Not blocked: Discard Probe
-		  if(debug){printf("Process: %s, read in %s, Not Blocked, Discarding...\n", processName, probe);}
+		  printf("Process: %s, read in %s, Not Blocked, Discarding...\n", processName, message);
 		  probe = NULL;
 		}
 	      free(temp);
@@ -495,7 +502,7 @@ void *sender_thread(void *arg)
 
 void send_probe(char* probe)
 {
-  if(debug){printf("Entered Send Probe: Probe = %s\n", (char*)probe);}
+  printf("Entered Send Probe: Probe = %s\n", (char*)probe);
   int readcount;
   int newmessageid;
   char* message;
