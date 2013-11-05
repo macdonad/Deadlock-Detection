@@ -21,6 +21,7 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <semaphore.h>
 
 //Prototypes
 void read_file();
@@ -39,6 +40,9 @@ void clean_and_exit();
 
 //Define
 #define MAX_BUF 1024
+
+//Shared Semaphore to protect shared memory
+#define SNAME "protector"
 
 //Globals
 int blocked = 0;
@@ -70,6 +74,8 @@ char* splitter = "#";
 
 int messageId = -1;
 
+sem_t sender;
+sem_t* protector;
 //Main
 int main(int argc, char* argv[])
 {
@@ -119,6 +125,8 @@ int main(int argc, char* argv[])
   check_requested();
 
   set_up_smem();
+
+  sem_init(&sender, 0, 1);
 
   //Split into threads
   int thread = 0;
@@ -388,10 +396,14 @@ void *receiver_thread(void *arg)
       //read in probes
       //printf("Process Count: %d\nProcessNumber: %d\nBlockedBy: %c\n", processcount, processNumber, blockedby[0][1]);
       //sprintf(sharedPtr, "%d%d%d:%d:%c", 1, processcount, processNumber, processNumber, blockedby[0][1]);
+      
+      sem_wait(protector);
+
       temp = (char*)malloc(strlen(sharedPtr) + 1);
       strcpy(temp, sharedPtr);
       if(debug){printf("Rec: Temp: %s\n", temp);}
       newmessageid = atoi(strtok(temp, splitter));
+      sem_post(protector);
       if(debug){printf("Rec: MId:%d\n", messageId);}
       if(debug){printf("Rec: New MessageId:%d\n", newmessageid);}
 
@@ -400,10 +412,12 @@ void *receiver_thread(void *arg)
       if(messageId < newmessageid)
 	{
 	  free(temp);
-
+	  
 	  messageId = newmessageid;
 	  if(debug){printf("MessageId: %d", messageId);}
 	  if(debug){printf("Receiver turn: Shared Memory = %s\n", sharedPtr);}
+
+	  sem_wait(protector);
 
 	  temp = (char*)malloc(strlen(sharedPtr) + 1);
 	  strcpy(temp, sharedPtr);
@@ -423,7 +437,7 @@ void *receiver_thread(void *arg)
 	  if(debug){printf("Message: %s\n", message);}
 	  sprintf(sharedPtr, "%d#%d#%s", newmessageid, readcount, message);
 	  if(debug){printf("New Shared Mem, after inc: %s\n", (char*)sharedPtr);}
-
+	  
 	  if(debug){printf("message: %s\n", message);}
 	  probe = (char*)malloc(strlen(sharedPtr) + 1);
 	  strcpy(probe, sharedPtr);
@@ -449,8 +463,9 @@ void *receiver_thread(void *arg)
 
 		      sprintf(probe, "%d#%d#%c:%d:%c", messageId + 1, 0, message[0], processNumber, blockedby[0][1]);
 		      printf("New Probe %s\n", probe);
-		      
+		      sem_post(protector);
 		      send_probe(probe);			 
+		      sem_wait(protector);
 		    }
 		  else
 		    {
@@ -466,6 +481,13 @@ void *receiver_thread(void *arg)
 	      free(temp);
 	      free(probe);
 	    }
+	}
+      sem_post(protector);
+      int value;
+      sem_getvalue(protector, &value);
+      if(value <= 0)
+	{
+	  sem_post(protector);
 	}
       sleep(1);
     }
@@ -502,32 +524,38 @@ void *sender_thread(void *arg)
 
 void send_probe(char* probe)
 {
+  sem_wait(&sender);
   printf("Entered Send Probe: Probe = %s\n", (char*)probe);
   int readcount;
   int newmessageid;
   char* message;
   char* temp;
 
+  sem_wait(protector);
   temp = (char*)malloc(strlen(sharedPtr) + 1);
   strcpy(temp, sharedPtr);
   newmessageid = atoi(strtok(temp, splitter));
   readcount = atoi(strtok(NULL, splitter));
   message = strtok(NULL, splitter);
   if(debug){printf("Message before loop in send: %s\n", message);}
-  free(temp);
+  sem_post(protector);
 
   while(readcount < processcount)
     {
+      free(temp);
       if(debug){printf("Sender in loop?\nReadCount: %d\nProcessCount:%d\n", readcount, processcount);}
       sleep(1);
+      
+      sem_wait(protector);
       temp = (char*)malloc(strlen(sharedPtr) + 1);
       strcpy(temp, sharedPtr);
       newmessageid = atoi(strtok(temp, splitter));
       readcount = atoi(strtok(NULL, splitter));
       message = strtok(NULL, splitter);        
       if(debug){printf("Message in send: %s\n", message);}
-      free(temp);
+      sem_post(protector);
     }
+  free(temp);
   //Send response to probe
   if(debug){printf("Sending probe response...\n");}
   sprintf(sharedPtr, "%s", probe);
@@ -548,8 +576,10 @@ void send_probe(char* probe)
       printf("Process: %s (PID: %d), is not blocked, sent a new probe.\n", processName, pid);
     }
   printf("Probe Sent:%s\n", probe);
+  sem_post(&sender);
 }
 
+//Set up shared mem, and semaphore to protect it
 void set_up_smem()
 {
   // Set up shared Memory, every process will read it, then when all have read, someone can write.
@@ -590,7 +620,23 @@ void set_up_smem()
     {
       sprintf(sharedPtr, "%d#%d#%d:%d:%c", 0,0,0,0,'0');
       if(debug){printf("Init Message: %s\n", sharedPtr);}
+      
+      printf("Create shared semaphore\n");
+      protector = sem_open(SNAME, O_CREAT, 0644, 1);
+      sem_init(protector, 1, 1);
     }
+  else
+    {
+      printf("Attached to shared semaphore\n");
+      protector = sem_open(SNAME, 0);
+    }
+  printf("Entering Test\n");
+  sem_wait(protector);
+  printf("Start Test\n");
+  sleep(3);
+  printf("Test semaphore:%s\n", processName);
+  sem_post(protector);
+  printf("Leaving Test\n");
 }
 
 void clean_and_exit()
