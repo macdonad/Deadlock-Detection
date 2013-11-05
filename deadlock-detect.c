@@ -348,7 +348,7 @@ void am_i_blocked()
   int i = 0;
   if(blocked)
     {
-      if(debug){printf("I'm Blocked\n");}
+      printf("I'm Blocked\n");
       while(i < blockedbycount)
 	{
 	  if(debug){printf("Process: %s is blocked by process %s\n", processName, blockedby[i]);}
@@ -433,7 +433,7 @@ void *receiver_thread(void *arg)
 	  if(debug){printf("Message in Rec: %s\n", message);}
 
 	  //Put shared memory back with inc read count
-	  printf("Incremented Read Count\n");
+	  if(debug){printf("Incremented Read Count\n");}
 	  if(debug){printf("Message: %s\n", message);}
 	  sprintf(sharedPtr, "%d#%d#%s", newmessageid, readcount, message);
 	  if(debug){printf("New Shared Mem, after inc: %s\n", (char*)sharedPtr);}
@@ -444,7 +444,7 @@ void *receiver_thread(void *arg)
 	  if(debug){printf("%s\n", probe);}
 	  if(probe != NULL && newmessageid != 0)
 	    {
-	      printf("Message: %s\n", message);
+	      if(debug){printf("Message: %s\n", message);}
 	      if(blocked)
 		{
 		  //blocked
@@ -459,17 +459,17 @@ void *receiver_thread(void *arg)
 			  printf("Set Deadlocked flag\n");
 			  deadlocked = 1;
 			}
-		      printf("Process: %s, read in %s, I am Blocked, Responding to Probe\n", processName, message);
+		      if(debug){printf("Process: %s, read in %s, I am Blocked, Responding to Probe\n", processName, message);}
 
 		      sprintf(probe, "%d#%d#%c:%d:%c", messageId + 1, 0, message[0], processNumber, blockedby[0][1]);
-		      printf("New Probe %s\n", probe);
+		      if(debug){printf("New Probe %s\n", probe);}
 		      sem_post(protector);
 		      send_probe(probe);			 
 		      sem_wait(protector);
 		    }
 		  else
 		    {
-		      printf("Message[4]: %c and ProcessNumber: %d are not equal\n", message[4], processNumber);
+		      if(debug){printf("Message[4]: %c and ProcessNumber: %d are not equal\n", message[4], processNumber);}
 		    }
 		}
 	      else
@@ -525,7 +525,7 @@ void *sender_thread(void *arg)
 void send_probe(char* probe)
 {
   sem_wait(&sender);
-  printf("Entered Send Probe: Probe = %s\n", (char*)probe);
+  if(debug){printf("Entered Send Probe: Probe = %s\n", (char*)probe);}
   int readcount;
   int newmessageid;
   char* message;
@@ -564,18 +564,18 @@ void send_probe(char* probe)
     {
       if(deadlocked)
 	{
-	  printf("Process: %s (PID: %d), is deadlocked, sent a new probe.\n", processName, pid);
+	  printf("Process: %s (PID: %d), is deadlocked, sent a new probe: %s.\n", processName, pid, probe);
 	}
       else
 	{
-	  printf("Process: %s (PID: %d), is blocked, sent a new probe.\n", processName, pid);
+	  printf("Process: %s (PID: %d), is blocked, sent a new probe: %s.\n", processName, pid, probe);
 	}
     }
   else
     {
-      printf("Process: %s (PID: %d), is not blocked, sent a new probe.\n", processName, pid);
+      printf("Process: %s (PID: %d), is not blocked, sent a new probe: %s.\n", processName, pid, probe);
     }
-  printf("Probe Sent:%s\n", probe);
+  if(debug){printf("Probe Sent:%s\n", probe);}
   sem_post(&sender);
 }
 
@@ -630,13 +630,16 @@ void set_up_smem()
       printf("Attached to shared semaphore\n");
       protector = sem_open(SNAME, 0);
     }
-  printf("Entering Test\n");
-  sem_wait(protector);
-  printf("Start Test\n");
-  sleep(3);
-  printf("Test semaphore:%s\n", processName);
-  sem_post(protector);
-  printf("Leaving Test\n");
+  if(debug)
+    {
+      printf("Entering Test\n");
+      sem_wait(protector);
+      printf("Start Test\n");
+      sleep(3);
+      printf("Test semaphore:%s\n", processName);
+      sem_post(protector);
+      printf("Leaving Test\n");
+    }
 }
 
 void clean_and_exit()
