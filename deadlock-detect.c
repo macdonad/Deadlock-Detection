@@ -395,11 +395,15 @@ void *receiver_thread(void *arg)
       if(debug){printf("Rec: MId:%d\n", newmessageid);}
       if(debug){printf("Rec: MessageId:%d\n", messageId);}
       free(temp);
+
+      printf("Received new probe, Message Id:%d, new messageid:%d\n", messageId, newmessageid);
+
       if(messageId < newmessageid)
 	{
+
 	  messageId = newmessageid;
 	  if(debug){printf("MessageId: %d", messageId);}
-	  if(debug){printf("Receiver turn: Shared Memory = %s\n", sharedPtr);}
+	  printf("Receiver turn: Shared Memory = %s\n", sharedPtr);
 
 	  temp = (char*)malloc(strlen(sharedPtr) + 1);
 	  strcpy(temp, sharedPtr);
@@ -416,6 +420,7 @@ void *receiver_thread(void *arg)
 	  free(temp);
 
 	  //Put shared memory back with inc read count
+	  printf("Incremented Read Count\n");
 	  sprintf(sharedPtr, "%d#%d#%s", newmessageid, readcount, message);
 	  if(debug){printf("New Shared Mem, after inc: %s\n", (char*)sharedPtr);}
 
@@ -465,6 +470,9 @@ void *sender_thread(void *arg)
   if(debug){printf("Sender Standing By\n");}
   while(blocked && !deadlocked)
     {
+      //send probe every 10 seconds
+      sleep(10);
+
       if(debug){printf("Sender Turn: Shared Memory = %s\n", (char*)sharedPtr);}
       char probe[6];
       int i = 0;
@@ -477,8 +485,6 @@ void *sender_thread(void *arg)
 	  send_probe(probe);
 	  i++;
 	}
-      //send probe every 10 seconds
-      sleep(10);
     }
 
   if(debug){if(deadlocked){printf("Stopping Probes, I am Deadlocked\n");}}
@@ -533,6 +539,7 @@ void send_probe(char* probe)
     {
       printf("Process: %s (PID: %d), is not blocked, sent a new probe.\n", processName, pid);
     }
+  printf("Probe Sent:%s\n", probe);
 }
 
 void set_up_smem()
