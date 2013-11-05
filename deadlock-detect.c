@@ -392,18 +392,18 @@ void *receiver_thread(void *arg)
       strcpy(temp, sharedPtr);
       if(debug){printf("Rec: Temp: %s\n", temp);}
       newmessageid = atoi(strtok(temp, splitter));
-      if(debug){printf("Rec: MId:%d\n", newmessageid);}
-      if(debug){printf("Rec: MessageId:%d\n", messageId);}
-      free(temp);
+      if(debug){printf("Rec: MId:%d\n", messageId);}
+      if(debug){printf("Rec: New MessageId:%d\n", newmessageid);}
 
-      printf("Received new probe, Message Id:%d, new messageid:%d\n", messageId, newmessageid);
+      printf("Received new probe, Message Id:%d, new messageid:%d\nProbe:%s\n", messageId, newmessageid, (char*)sharedPtr);
 
       if(messageId < newmessageid)
 	{
+	  free(temp);
 
 	  messageId = newmessageid;
 	  if(debug){printf("MessageId: %d", messageId);}
-	  printf("Receiver turn: Shared Memory = %s\n", sharedPtr);
+	  if(debug){printf("Receiver turn: Shared Memory = %s\n", sharedPtr);}
 
 	  temp = (char*)malloc(strlen(sharedPtr) + 1);
 	  strcpy(temp, sharedPtr);
@@ -417,10 +417,10 @@ void *receiver_thread(void *arg)
 	  //0:0:0
 	  message = strtok(NULL, splitter);
 	  if(debug){printf("Message in Rec: %s\n", message);}
-	  free(temp);
 
 	  //Put shared memory back with inc read count
 	  printf("Incremented Read Count\n");
+	  printf("Message: %s\n", message);
 	  sprintf(sharedPtr, "%d#%d#%s", newmessageid, readcount, message);
 	  if(debug){printf("New Shared Mem, after inc: %s\n", (char*)sharedPtr);}
 
@@ -456,6 +456,7 @@ void *receiver_thread(void *arg)
 		  if(debug){printf("Process: %s, read in %s, Not Blocked, Discarding...\n", processName, probe);}
 		  probe = NULL;
 		}
+	      free(temp);
 	      free(probe);
 	    }
 	}
