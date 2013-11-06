@@ -51,6 +51,7 @@ char* blockingProcess;
 int processNumber;
 char* processName;
 
+//Thread id's
 pthread_t main_thread_id;
 pthread_t receiver_thread_id;
 pthread_t sender_thread_id;
@@ -79,20 +80,25 @@ char* splitter = "#\n";
 
 int messageId = -1;
 
+//Semaphores
 sem_t sender;
 sem_t getMessageId;
 sem_t* protector;
 sem_t* deadlock;
+
 //Main
 int main(int argc, char* argv[])
 {
+  //Create Signal Handler
   signal(SIGINT, handle_signal);
 
+  //Prompt for debug
   debug_set();
   
   int numberOfArgs = argc;
   processName = argv[0];//Initialize
 
+  //Verify Args
   if(numberOfArgs < 3)
     {
       printf("Not enough arguments specified.\nPlease provide filename and process number.\n");
@@ -129,10 +135,14 @@ int main(int argc, char* argv[])
 	  i++;
 	}
     }
+
+  //Check the processes I am requesting
   check_requested();
 
+  //Set up shared memory
   set_up_smem();
 
+  //Init process specific semaphores
   sem_init(&sender, 0, 1);
   sem_init(&getMessageId, 0, 1);
 
@@ -161,9 +171,12 @@ int main(int argc, char* argv[])
       printf("Error setting up receiver thread.\n");
     }
 
+  //Only end when all threads are done
   pthread_exit(0);
 }
 
+
+//Read file
 void read_file()
 {
   int size = 1024, pos;
@@ -269,6 +282,7 @@ void handle_line(char* line)
   me = 0;
 }
 
+//Signal Handler
 void handle_signal(int sigNum)
 {
   printf("\nUggggghhhhhh...... Death. Process %s has died.\n", processName);
@@ -276,6 +290,7 @@ void handle_signal(int sigNum)
   exit(0);
 }
 
+//Prompt for Debug
 void debug_set()
 {
   char response;
@@ -291,6 +306,7 @@ void debug_set()
     }
 }
 
+//Check the processes I am requesting for their owning process
 void check_requested()
 {
   int size = 1024, pos;
@@ -325,6 +341,7 @@ void check_requested()
   am_i_blocked();
 }
 
+//Check who owns my requests
 void owns_my_requested(char* line)
 {
   const char* s = " \n";
@@ -356,6 +373,7 @@ void owns_my_requested(char* line)
     }
 }
 
+//Check if I am blocked
 void am_i_blocked()
 {
   int i = 0;
@@ -380,6 +398,7 @@ void am_i_blocked()
 }
 
 
+//Main thread, do nothing unless deadlocked
 void *main_thread(void *arg)
 {
   //wait for detection of deadlock
@@ -398,6 +417,7 @@ void *main_thread(void *arg)
   pthread_exit(NULL);
 }
 
+//Continually check shared memory
 void *receiver_thread(void *arg)
 {
   //Message Id, Read Count, Message ( Blocked Process :  Sender : Receiver)
@@ -420,6 +440,7 @@ void *receiver_thread(void *arg)
       sem_post(&getMessageId);
       sem_post(protector);
 
+      //Have I read this before?
       if(messageId < newmessageid)
 	{
 	  free(temp);
@@ -451,6 +472,7 @@ void *receiver_thread(void *arg)
 
 	  sem_post(protector);
 
+	  //Not deadlocked, valid message, o ahread and process
 	  if(probe != NULL && newmessageid != 0 && !deadlocked)
 	    {
 	      if((message[4]-'0') == processNumber)
@@ -468,6 +490,7 @@ void *receiver_thread(void *arg)
 			  deadlocked = 1;
 			  sem_post(deadlock);
 			}
+		      //Not deadlocked
 		      sem_wait(&getMessageId);
 
 		      sprintf(probe, "%d#%d#%c:%d:%c", messageId + 1, 0, message[0], processNumber, blockedby[0][1]);
@@ -479,7 +502,8 @@ void *receiver_thread(void *arg)
 		  else
 		    {
 		      //Not blocked: Discard Probe
-		      printf("Process: %s, read in %s, Not Blocked, Discarding...\n", processName, message);
+		      int pid = getpid();
+		      printf("Process: %s (PID: %d) read in %s, Not Blocked, Discarding...\n", processName, pid, message);
 		      probe = NULL;
 		    }
 		}
@@ -487,8 +511,6 @@ void *receiver_thread(void *arg)
 	      free(probe);
 	    }
 	}
-      //Nice
-      //      sleep(1);
     }
   pthread_exit(NULL);
 }
@@ -501,6 +523,7 @@ void *sender_thread(void *arg)
       //send probe every 10 seconds
       sleep(10);
 
+      //Send a probe for each process blocking me
       char probe[10];
       int i = 0;
       while(i < blockedbycount)
@@ -520,6 +543,7 @@ void *sender_thread(void *arg)
   pthread_exit(NULL);
 }
 
+//Send a message
 void send_probe(char* probe)
 {
   sem_wait(&sender);
@@ -538,6 +562,7 @@ void send_probe(char* probe)
 
   sem_post(protector);
 
+  //Make sure everyone read it
   while(readcount < processcount)
     {
       free(temp);
@@ -624,6 +649,7 @@ void set_up_smem()
       sprintf(sharedPtr, "%d#%d#%d:%d:%c", 0,0,0,0,'0');
       if(debug){printf("Init Message: %s\n", sharedPtr);}
       
+      //Create shared semaphore
       printf("Created shared semaphore\n\n");
       protector = sem_open(SNAME, O_CREAT, 0644, 1);
       sem_init(protector, 1, 1);
@@ -633,6 +659,7 @@ void set_up_smem()
     }
   else
     {
+      //Attach to shared memory
       printf("Attached to shared semaphore\n\n");
       protector = sem_open(SNAME, 0);
       deadlock = sem_open(DEAD, 0);
@@ -641,6 +668,7 @@ void set_up_smem()
 
 void clean_and_exit()
 {
+  //Clean up and exit
   shmctl(shmId, IPC_RMID, 0);
   exit(0);
 }
